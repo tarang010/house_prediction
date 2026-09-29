@@ -88,15 +88,13 @@ def main(args):
         mlflow.sklearn.log_model(model, "tuned_model")
         model_name = model_cfg['name']
         model_uri = f"runs:/{mlflow.active_run().info.run_id}/tuned_model"
-
         logger.info("Registering model to MLflow Model Registry...")
         client = MlflowClient()
         try:
             client.create_registered_model(model_name)
             logger.info(f"Created new model: {model_name}")
-        except mlflow.exceptions.RestException:
+        except mlflow.exceptions.MlflowException:
             logger.info(f"Model {model_name} already exists. Continuing...")
-
         model_version = client.create_model_version(
             name=model_name,
             source=model_uri,

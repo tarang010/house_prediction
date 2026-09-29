@@ -27,4 +27,3 @@ def test_engineered_columns_exist():
 
     for col in expected_columns:
         assert col in df.columns
-``

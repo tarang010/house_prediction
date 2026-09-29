@@ -90,7 +90,6 @@ def main(args):
         model_uri = f"runs:/{mlflow.active_run().info.run_id}/tuned_model"
         logger.info("Registering model to MLflow Model Registry...")
         client = MlflowClient()
-         
         try:
             client.create_registered_model(model_name)
             logger.info(f"Created new model: {model_name}")

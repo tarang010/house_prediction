@@ -1,9 +1,10 @@
 import argparse
+import os
 import pandas as pd
 import joblib
+import xgboost as xgb
 import yaml
 import logging
-import xgboost as xgb
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
@@ -18,6 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,6 +59,7 @@ def parse_args():
 # Load model from config
 # -----------------------------
 def get_model_instance(name, params):
+
     model_map = {
         "LinearRegression": LinearRegression,
         "RandomForest": RandomForestRegressor,
@@ -71,7 +74,7 @@ def get_model_instance(name, params):
 
 
 # -----------------------------
-# Main logic
+# Main Logic
 # -----------------------------
 def main(args):
 
@@ -92,7 +95,7 @@ def main(args):
     X = data.drop(columns=[target])
     y = data[target]
 
-    # Train/Test Split
+    # Train-test split
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -110,10 +113,10 @@ def main(args):
         f"Training model: {model_cfg['best_model']}"
     )
 
-    # Train
+    # Train model
     model.fit(X_train, y_train)
 
-    # Predict
+    # Predictions
     y_pred = model.predict(X_test)
 
     # Metrics
@@ -123,16 +126,30 @@ def main(args):
     logger.info(f"MAE: {mae:.2f}")
     logger.info(f"R² Score: {r2:.4f}")
 
+    # Create output directory
+    trained_dir = os.path.join(
+        args.models_dir,
+        "trained"
+    )
+
+    os.makedirs(
+        trained_dir,
+        exist_ok=True
+    )
+
     # Save model
     model_name = model_cfg["name"]
 
-    save_path = (
-        f"{args.models_dir}/trained/{model_name}.pkl"
+    save_path = os.path.join(
+        trained_dir,
+        f"{model_name}.pkl"
     )
 
     joblib.dump(model, save_path)
 
-    logger.info(f"Model saved successfully: {save_path}")
+    logger.info(
+        f"Model saved successfully: {save_path}"
+    )
 
 
 if __name__ == "__main__":

@@ -59,19 +59,17 @@ def parse_args():
 # Load model from config
 # -----------------------------
 def get_model_instance(name, params):
-
     model_map = {
-        "LinearRegression": LinearRegression,
-        "RandomForest": RandomForestRegressor,
-        "GradientBoosting": GradientBoostingRegressor,
-        "XGBoost": xgb.XGBRegressor
+    "LinearRegression": LinearRegression,
+    "RandomForest": RandomForestRegressor,
+    "GradientBoosting": GradientBoostingRegressor,
+    "XGBoost": xgb.XGBRegressor
     }
-
+ 
     if name not in model_map:
         raise ValueError(f"Unsupported model: {name}")
-
-    return model_map**params
-
+ 
+        return model_map**params
 
 # -----------------------------
 # Main Logic

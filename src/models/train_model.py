@@ -65,12 +65,9 @@ def get_model_instance(name, params):
     "GradientBoosting": GradientBoostingRegressor,
     "XGBoost": xgb.XGBRegressor
     }
- 
     if name not in model_map:
         raise ValueError(f"Unsupported model: {name}")
- 
         return model_map**params
-
 # -----------------------------
 # Main Logic
 # -----------------------------

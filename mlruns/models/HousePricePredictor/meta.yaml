@@ -7,5 +7,5 @@ description: "Model for predicting house prices.\nAlgorithm: RandomForest\nHyper
   in the dataset except the target variable\nTarget variable: price\nTrained on dataset:
   data\\processed\\house_data_processed.csv\nModel saved at: models/trained/HousePricePredictor.pkl\nPerformance
   metrics:\n  - MAE: 254991.89\n  - R²: 0.9973"
-last_updated_timestamp: 1791189129171
+last_updated_timestamp: 1791189378081
 name: HousePricePredictor

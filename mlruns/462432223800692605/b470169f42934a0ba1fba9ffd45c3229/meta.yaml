@@ -1,0 +1,14 @@
+artifact_uri: mlflow-artifacts:/462432223800692605/b470169f42934a0ba1fba9ffd45c3229/artifacts
+end_time: 1791189129203
+entry_point_name: ''
+experiment_id: '462432223800692605'
+lifecycle_stage: active
+run_id: b470169f42934a0ba1fba9ffd45c3229
+run_name: final_training
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1791189122707
+status: 3
+tags: []
+user_id: BLR-TECH-80737$

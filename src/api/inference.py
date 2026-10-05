@@ -1,7 +1,7 @@
 import joblib
 import pandas as pd
 from datetime import datetime
-from schemas import HousePredictionRequest, PredictionResponse
+from .schemas import HousePredictionRequest, PredictionResponse
 
 # Load model and preprocessor
 MODEL_PATH = "models/trained/HousePricePredictor.pkl"

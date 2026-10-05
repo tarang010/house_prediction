@@ -1,43 +1,43 @@
 # ---------------------------------------------
-# 📊 DATA PROCESSING & ANALYSIS
+# DATA PROCESSING & ANALYSIS
 # ---------------------------------------------
-pandas==1.5.3          # Data manipulation and analysis — core for working with tabular data
-numpy==1.24.3          # Numerical operations, arrays, and matrix support (used by almost all ML libraries)
-snowflake-connector-python[pandas]
+pandas==2.3.2
+numpy==2.3.3
+snowflake-connector-python[pandas]==4.0.0
 
 # ---------------------------------------------
-# 🧠 MACHINE LEARNING
+# MACHINE LEARNING
 # ---------------------------------------------
-scikit-learn==1.2.2    # Classic ML models (regression, classification, clustering), preprocessing, model evaluation
-xgboost==1.7.5
-# ---------------------------------------------
-# 📈 VISUALIZATION
-# ---------------------------------------------
-matplotlib==3.7.1      # Base library for plotting graphs, charts, and visualizations
-seaborn==0.12.2        # High-level interface for drawing attractive and informative statistical graphics (built on matplotlib)
+scikit-learn==1.7.2
+xgboost==3.0.5
 
 # ---------------------------------------------
-# 📦 EXPERIMENT TRACKING & MODEL MANAGEMENT
+# VISUALIZATION
 # ---------------------------------------------
-mlflow==2.3.1          # End-to-end ML lifecycle tracking, including experiment tracking, model packaging, and deployment
+matplotlib==3.10.6
+seaborn==0.13.2
 
 # ---------------------------------------------
-# ✅ TESTING
+# EXPERIMENT TRACKING & MODEL MANAGEMENT
 # ---------------------------------------------
-pytest==7.3.1          # Python testing framework — great for writing unit tests for ML pipelines, data validation, etc.
+mlflow==3.3.2
 
 # ---------------------------------------------
-# ⚡ API DEVELOPMENT (FOR MODEL SERVING)
+# TESTING
 # ---------------------------------------------
-fastapi==0.95.2        # Lightweight, high-performance web framework for serving ML models via REST APIs
-uvicorn==0.22.0        # ASGI server for running FastAPI apps — lightweight and fast
-#
-# ---------------------------------------------
-#  MISC
-# ---------------------------------------------
-pyyaml==6.0
-joblib==1.3.1
-setuptools==65.5.0
-ipykernel==6.29.5
+pytest==8.4.2
 
+# ---------------------------------------------
+# API DEVELOPMENT
+# ---------------------------------------------
+fastapi==0.118.0
+uvicorn==0.37.0
 
+# ---------------------------------------------
+# MISC
+# ---------------------------------------------
+pyyaml==6.0.3
+joblib==1.5.2
+setuptools==80.9.0
+wheel==0.45.1
+ipykernel==6.30.1

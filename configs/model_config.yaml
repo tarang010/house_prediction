@@ -3,9 +3,23 @@ model:
 
   target_variable: price
 
-  best_model: RandomForest
+  candidate_models:
 
-  parameters:
-    n_estimators: 90
-    max_depth: 10
-    random_state: 42
+    LinearRegression:
+      {}
+
+    RandomForest:
+      n_estimators: 90
+      max_depth: 10
+      random_state: 42
+
+    GradientBoosting:
+      n_estimators: 100
+      learning_rate: 0.1
+      random_state: 42
+
+    XGBoost:
+      n_estimators: 100
+      max_depth: 6
+      learning_rate: 0.1
+      random_state: 42

@@ -3,9 +3,9 @@ creation_timestamp: 1791188079388
 deployment_job_id: null
 deployment_job_state: null
 description: "Model for predicting house prices.\nAlgorithm: RandomForest\nHyperparameters:
-  {'n_estimators': 99, 'max_depth': 11, 'random_state': 50}\nFeatures used: All features
+  {'n_estimators': 90, 'max_depth': 11, 'random_state': 42}\nFeatures used: All features
   in the dataset except the target variable\nTarget variable: price\nTrained on dataset:
   data\\processed\\house_data_processed.csv\nModel saved at: models/trained/HousePricePredictor.pkl\nPerformance
-  metrics:\n  - MAE: 223729.14\n  - R²: 0.9981"
-last_updated_timestamp: 1791192852290
+  metrics:\n  - MAE: 251158.80\n  - R²: 0.9974"
+last_updated_timestamp: 1791193004694
 name: HousePricePredictor

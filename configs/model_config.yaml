@@ -6,6 +6,6 @@ model:
   best_model: RandomForest
 
   parameters:
-    n_estimators: 120
-    max_depth: 12
+    n_estimators: 90
+    max_depth: 10
     random_state: 42

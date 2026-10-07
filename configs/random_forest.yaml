@@ -1,5 +1,5 @@
 model:
-  name: house_price_prediction
+  name: house_price_prediction_v1
   best_model: RandomForest
 
   target_variable: price

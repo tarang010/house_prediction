@@ -72,7 +72,7 @@ def main(args):
     model = get_model_instance(model_cfg['best_model'], model_cfg['parameters'])
 
     # Start MLflow run
-    with mlflow.start_run(run_name="model_cfg['best_model']"):
+    with mlflow.start_run(run_name=model_cfg['best_model']):
         logger.info(f"Training model: {model_cfg['best_model']}")
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)

@@ -38,7 +38,7 @@ dist/
 *.egg-info/
 
 # Ignore all .pkl files (models, preprocessors, etc.)
-*.pkl
+
 
 mlartifacts/
 mlruns/

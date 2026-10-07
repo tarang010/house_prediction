@@ -1,0 +1,7 @@
+model:
+  name: house_price_prediction
+  best_model: LinearRegression
+
+  target_variable: price
+
+  parameters: {}

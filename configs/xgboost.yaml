@@ -1,0 +1,11 @@
+model:
+  name: house_price_prediction
+  best_model: XGBoost
+
+  target_variable: price
+
+  parameters:
+    n_estimators: 200
+    learning_rate: 0.05
+    max_depth: 6
+    random_state: 42

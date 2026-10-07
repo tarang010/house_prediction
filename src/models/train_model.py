@@ -14,7 +14,7 @@ import logging
 from mlflow.tracking import MlflowClient
 import platform
 import sklearn
-
+import json
 # -----------------------------
 # Configure logging
 # -----------------------------
@@ -147,6 +147,14 @@ def main(args):
         joblib.dump(model, save_path)
         logger.info(f"Saved trained model to: {save_path}")
         logger.info(f"Final MAE: {mae:.2f}, R²: {r2:.4f}")
+
+        metrics = {
+            "model": model_cfg["best_model"],
+            "mae": mae,
+            "r2": r2
+        }
+        with open("metrics.json", "w") as f:
+            json.dump(metrics, f)
 
 if __name__ == "__main__":
     args = parse_args()

@@ -2,10 +2,11 @@ import snowflake.connector
 import pandas as pd
 import os
 
+
 conn = snowflake.connector.connect(
-    user="TIWARI010",
-    password="Skates@Champion121",
-    account="SBPLOBQ-TY14646",
+    user=os.getenv("SF_user"),
+    password=os.getenv("SF_password"),
+    account=os.getenv("SF_account"),
     warehouse="COMPUTE_WH",
     database="HOUSE_PRICE_DB",
     schema="RAW"

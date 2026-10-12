@@ -21,7 +21,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
 from sklearn.pipeline import Pipeline
 
-from src.features.engineer import create_preprocessor
+from .features.engineer import create_preprocessor
 
 logging.basicConfig(
     level=logging.INFO,

@@ -172,19 +172,18 @@ async def health_check():
 async def predict(request: HousePredictionRequest):
     result = predict_price(request)
 
-    # Convert request to a dictionary.
-    if hasattr(request, "model_dump"):
-        request_data = request.model_dump()
-    else:
-        request_data = request.dict()
+    request_data = (
+        request.model_dump()
+        if hasattr(request, "model_dump")
+        else request.dict()
+    )
 
-    # Adjust this field name if your response schema differs.
-    predicted_price = result.predicted_price
+    predicted_price = float(result.predicted_price)
 
-    # Store input features and prediction in Snowflake.
-    store_prediction(
+    prediction_id = store_prediction(
         request_data=request_data,
-        predicted_price=float(predicted_price),
+        predicted_price=predicted_price,
+        model_version="1",
     )
 
     return result

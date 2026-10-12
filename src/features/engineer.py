@@ -1,113 +1,130 @@
-# src/features/engineer.py
-import pandas as pd
-import numpy as np
-from datetime import datetime
-import logging
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-import joblib
 
-# Set up logging
+import argparse
+import logging
+import os
+from datetime import datetime
+
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger('feature-engineering')
+logger = logging.getLogger("feature-engineering")
+
 
 def create_features(df):
-    """Create new features from existing data."""
-    logger.info("Creating new features")
-    
-    # Make a copy to avoid modifying the original dataframe
-    df_featured = df.copy()
-    
-    # Calculate house age
+    """Create prediction-time features without using the target as an input."""
+    df = df.copy()
+
+    # Normalize column names for consistent processing.
+    df.columns = [c.strip().lower() for c in df.columns]
+
+    if "price" not in df.columns:
+        raise ValueError("Required target column 'price' is missing.")
+
+    # Remove identifiers that are not predictive features.
+    df.drop(
+        columns=["source_prediction_id", "prediction_id"],
+        errors="ignore",
+        inplace=True,
+    )
+
+    # Ensure target and numeric source columns are numeric.
+    for col in ["price", "sqft", "bedrooms", "bathrooms", "year_built"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    if df["price"].isna().any():
+        logger.warning("Rows with missing/non-numeric target prices will be removed.")
+        df = df.dropna(subset=["price"]).copy()
+
+    if (df["sqft"].dropna() <= 0).any():
+        logger.warning("Non-positive sqft values found; check data quality.")
+
     current_year = datetime.now().year
-    df_featured['house_age'] = current_year - df_featured['year_built']
-    logger.info("Created 'house_age' feature")
-    
-    # Price per square foot
-    df_featured['price_per_sqft'] = df_featured['price'] / df_featured['sqft']
-    logger.info("Created 'price_per_sqft' feature")
-    
-    # Bedroom to bathroom ratio
-    df_featured['bed_bath_ratio'] = df_featured['bedrooms'] / df_featured['bathrooms']
-    # Handle division by zero
-    df_featured['bed_bath_ratio'] = df_featured['bed_bath_ratio'].replace([np.inf, -np.inf], np.nan)
-    df_featured['bed_bath_ratio'] = df_featured['bed_bath_ratio'].fillna(0)
-    logger.info("Created 'bed_bath_ratio' feature")
-    
-    # Do NOT one-hot encode categorical variables here; let the preprocessor handle it
-    return df_featured
+    df["house_age"] = current_year - df["year_built"]
+
+    # Avoid division-by-zero and invalid ratios.
+    df["bed_bath_ratio"] = (
+        df["bedrooms"] / df["bathrooms"].replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan)
+
+    # Missing ratios are handled by the numerical imputer.
+    logger.info("Created house_age and bed_bath_ratio features.")
+    return df.reset_index(drop=True)
+
 
 def create_preprocessor():
-    """Create a preprocessing pipeline."""
-    logger.info("Creating preprocessor pipeline")
-    
-    # Define feature groups
-    categorical_features = ['location', 'condition']
-    numerical_features = ['sqft', 'bedrooms', 'bathrooms', 'house_age', 'price_per_sqft', 'bed_bath_ratio']
-    
-    # Preprocessing for numerical features
-    numerical_transformer = Pipeline(steps=[
-        ('imputer', SimpleImputer(strategy='mean'))
+    """Build preprocessing that will be fitted only on training data."""
+    numeric_features = [
+        "sqft",
+        "bedrooms",
+        "bathrooms",
+        "year_built",
+        "house_age",
+        "bed_bath_ratio",
+    ]
+    categorical_features = ["location", "condition"]
+
+    numeric_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="median")),
     ])
-    
-    # Preprocessing for categorical features
-    categorical_transformer = Pipeline(steps=[
-        ('onehot', OneHotEncoder(handle_unknown='ignore'))
+
+    categorical_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
     ])
-    
-    # Combine preprocessors in a column transformer
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('num', numerical_transformer, numerical_features),
-            ('cat', categorical_transformer, categorical_features)
-        ]
-    )
-    
-    return preprocessor
+
+    return ColumnTransformer([
+        ("num", numeric_pipeline, numeric_features),
+        ("cat", categorical_pipeline, categorical_features),
+    ])
+
 
 def run_feature_engineering(input_file, output_file, preprocessor_file):
-    """Full feature engineering pipeline."""
-    # Load cleaned data
-    logger.info(f"Loading data from {input_file}")
+    logger.info("Loading data from %s", input_file)
     df = pd.read_csv(input_file)
-    
-    # Create features
     df_featured = create_features(df)
-    logger.info(f"Created featured dataset with shape: {df_featured.shape}")
-    
-    # Create and fit the preprocessor
-    preprocessor = create_preprocessor()
-    X = df_featured.drop(columns=['price'], errors='ignore')  # Features only
-    y = df_featured['price'] if 'price' in df_featured.columns else None  # Target column (if available)
-    X_transformed = preprocessor.fit_transform(X)
-    logger.info("Fitted the preprocessor and transformed the features")
-    
-    # Save the preprocessor
-    joblib.dump(preprocessor, preprocessor_file)
-    logger.info(f"Saved preprocessor to {preprocessor_file}")
-    
-    # Save fully preprocessed data
-    df_transformed = pd.DataFrame(X_transformed)
-    if y is not None:
-        df_transformed['price'] = y.values
-    df_transformed.to_csv(output_file, index=False)
-    logger.info(f"Saved fully preprocessed data to {output_file}")
-    
-    return df_transformed
+
+    # Validate required input features.
+    required = [
+        "price", "sqft", "bedrooms", "bathrooms",
+        "year_built", "location", "condition",
+    ]
+    missing = [col for col in required if col not in df_featured.columns]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    # Save raw engineered features. The trainer fits the preprocessor
+    # on its training split to prevent preprocessing leakage.
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
+    os.makedirs(os.path.dirname(preprocessor_file) or ".", exist_ok=True)
+
+    df_featured.to_csv(output_file, index=False)
+    joblib.dump(create_preprocessor(), preprocessor_file)
+
+    logger.info("Saved engineered dataset: %s", df_featured.shape)
+    logger.info("Saved preprocessor template to %s", preprocessor_file)
+    logger.info("Saved data to %s", output_file)
+    return df_featured
+
 
 if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Feature engineering for housing data.')
-    parser.add_argument('--input', required=True, help='Path to cleaned CSV file')
-    parser.add_argument('--output', required=True, help='Path for output CSV file (engineered features)')
-    parser.add_argument('--preprocessor', required=True, help='Path for saving the preprocessor')
-    
+    parser = argparse.ArgumentParser(
+        description="Engineer house-price training features."
+    )
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--preprocessor", required=True)
     args = parser.parse_args()
-    
-    run_feature_engineering(args.input, args.output, args.preprocessor)
+
+    run_feature_engineering(
+        args.input, args.output, args.preprocessor
+    )

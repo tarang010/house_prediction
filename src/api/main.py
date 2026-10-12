@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 
 from .inference import predict_price, batch_predict
 from .schemas import HousePredictionRequest, PredictionResponse
+from .snowflake_db import store_prediction
 
 app = FastAPI(
     title="House Price Prediction API",
@@ -168,11 +169,25 @@ async def health_check():
 
 
 @app.post("/predict", response_model=PredictionResponse)
-async def predict(
-    request: HousePredictionRequest
-):
-    return predict_price(request)
+async def predict(request: HousePredictionRequest):
+    result = predict_price(request)
 
+    # Convert request to a dictionary.
+    if hasattr(request, "model_dump"):
+        request_data = request.model_dump()
+    else:
+        request_data = request.dict()
+
+    # Adjust this field name if your response schema differs.
+    predicted_price = result.predicted_price
+
+    # Store input features and prediction in Snowflake.
+    store_prediction(
+        request_data=request_data,
+        predicted_price=float(predicted_price),
+    )
+
+    return result
 
 @app.post("/batch-predict")
 async def batch_predict_endpoint(

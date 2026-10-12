@@ -7,13 +7,13 @@ conn = snowflake.connector.connect(
     user=os.getenv("SF_user"),
     password=os.getenv("SF_password"),
     account=os.getenv("SF_account"),
-    warehouse="COMPUTE_WH",
-    database="HOUSE_PRICE_DB",
-    schema="RAW"
+    warehouse="ML_WH",
+    database="HOUSE_PRICE_MLOPS",
+    schema="ML"
 )
 query = """
 SELECT *
-FROM HOUSE_DATA
+FROM RAW_DATA
 """
 df = pd.read_sql(query, conn)
 # Convert Snowflake column names to lowercase

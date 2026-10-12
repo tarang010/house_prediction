@@ -4,11 +4,10 @@ import logging
 import os
 import platform
 import sys
+import time
 
 # --------------------------------------------------
-# FIX: Add project root to Python's import path.
-# This allows Jenkins to import src.features.engineer
-# when executing src/models/train_model.py directly.
+# PROJECT ROOT / PYTHON IMPORT PATH
 # --------------------------------------------------
 PROJECT_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..")
@@ -87,16 +86,72 @@ def get_model_instance(name, params):
 
 
 # --------------------------------------------------
+# MLflow MODEL REGISTRATION POLLING
+# --------------------------------------------------
+def wait_for_model_version(
+    client,
+    model_name,
+    version_number,
+    timeout_seconds=300,
+    poll_interval=2,
+):
+    """
+    Wait for an MLflow model version to become READY.
+    Uses get_model_version() rather than wait_until_ready(),
+    which may not exist in the installed MLflow client.
+    """
+    elapsed = 0
+
+    while elapsed < timeout_seconds:
+        current_version = client.get_model_version(
+            name=model_name,
+            version=version_number,
+        )
+
+        status = str(current_version.status).upper()
+
+        if status == "READY":
+            logger.info(
+                "MLflow model version %s is READY",
+                version_number,
+            )
+            return current_version
+
+        if status in ("FAILED_REGISTRATION", "FAILED"):
+            raise RuntimeError(
+                f"MLflow registration failed for model "
+                f"{model_name}, version {version_number}. "
+                f"Status: {status}"
+            )
+
+        logger.info(
+            "Waiting for model version %s; status=%s; elapsed=%ss",
+            version_number,
+            status,
+            elapsed,
+        )
+
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+
+    raise TimeoutError(
+        f"Model version {version_number} did not become READY "
+        f"within {timeout_seconds} seconds."
+    )
+
+
+# --------------------------------------------------
 # TRAINING PIPELINE
 # --------------------------------------------------
 def main(args):
+
     # Load configuration.
     with open(args.config, "r", encoding="utf-8") as file:
         config = yaml.safe_load(file)
 
     model_cfg = config["model"]
 
-    target = model_cfg["target_variable"]
+    target = model_cfg["target_variable"].strip().lower()
     model_name = model_cfg["name"]
     algorithm = model_cfg["best_model"]
     params = model_cfg.get("parameters", {})
@@ -123,8 +178,10 @@ def main(args):
     data = pd.read_csv(data_path)
 
     # Normalize column names.
-    data.columns = [str(column).strip().lower() for column in data.columns]
-    target = target.strip().lower()
+    data.columns = [
+        str(column).strip().lower()
+        for column in data.columns
+    ]
 
     if target not in data.columns:
         raise ValueError(
@@ -132,37 +189,48 @@ def main(args):
             f"Available columns: {list(data.columns)}"
         )
 
-    # Remove target and identifiers from model inputs.
-    # Identifiers must not be used as predictive features.
+    # Remove target and identifiers from input features.
     excluded = [
         target,
         "source_prediction_id",
         "prediction_id",
     ]
 
-    X = data.drop(columns=excluded, errors="ignore").copy()
-    y = pd.to_numeric(data[target], errors="coerce")
+    X = data.drop(
+        columns=excluded,
+        errors="ignore",
+    ).copy()
 
-    # Remove rows with missing or non-numeric target values.
+    y = pd.to_numeric(
+        data[target],
+        errors="coerce",
+    )
+
+    # Remove rows with missing or non-numeric targets.
     valid_rows = y.notna()
+
     X = X.loc[valid_rows].copy()
     y = y.loc[valid_rows].copy()
 
-    # Fail early if the dataset is not suitable.
+    # Validate training data.
     if len(X) < 10:
         raise ValueError(
-            f"Not enough valid rows to train the model: {len(X)}"
+            f"Not enough valid rows to train: {len(X)}"
         )
 
     if X.empty or len(X.columns) == 0:
-        raise ValueError("No input features remain after exclusions.")
+        raise ValueError(
+            "No input features remain after exclusions."
+        )
+
+    if not all(pd.api.types.is_numeric_dtype(y.dtype) for _ in [0]):
+        raise ValueError("Target column must be numeric.")
 
     logger.info("Dataset: %s", data_path)
     logger.info("Valid rows: %d", len(X))
     logger.info("Input columns: %s", list(X.columns))
 
-    # Split before fitting preprocessing to avoid fitting the
-    # imputers and encoders on the test set.
+    # Split BEFORE fitting preprocessing to avoid data leakage.
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -173,8 +241,7 @@ def main(args):
     logger.info("Training rows: %d", len(X_train))
     logger.info("Test rows: %d", len(X_test))
 
-    # The preprocessor handles numerical imputation and
-    # categorical one-hot encoding inside the fitted pipeline.
+    # Preprocessing and estimator are kept in one pipeline.
     pipeline = Pipeline(
         steps=[
             ("preprocessor", create_preprocessor()),
@@ -188,17 +255,28 @@ def main(args):
 
     os.makedirs(trained_dir, exist_ok=True)
 
-    # Train and log the run.
+    # --------------------------------------------------
+    # TRAIN, EVALUATE, AND REGISTER
+    # --------------------------------------------------
     with mlflow.start_run(run_name=algorithm) as run:
+
         logger.info("Starting model training...")
 
         pipeline.fit(X_train, y_train)
 
         predictions = pipeline.predict(X_test)
 
-        mae = float(mean_absolute_error(y_test, predictions))
-        rmse = float(np.sqrt(mean_squared_error(y_test, predictions)))
-        r2 = float(r2_score(y_test, predictions))
+        mae = float(
+            mean_absolute_error(y_test, predictions)
+        )
+
+        rmse = float(
+            np.sqrt(mean_squared_error(y_test, predictions))
+        )
+
+        r2 = float(
+            r2_score(y_test, predictions)
+        )
 
         logger.info(
             "Evaluation: MAE=%.2f | RMSE=%.2f | R2=%.4f",
@@ -207,8 +285,9 @@ def main(args):
             r2,
         )
 
-        # Log model parameters and evaluation metrics.
+        # Log parameters and metrics.
         mlflow.log_params(params)
+
         mlflow.log_param("algorithm", algorithm)
         mlflow.log_param("target_variable", target)
         mlflow.log_param("training_rows", len(X_train))
@@ -223,25 +302,28 @@ def main(args):
             }
         )
 
-        # Log the entire fitted pipeline, including preprocessing.
+        # Log the entire fitted pipeline.
+        # "name" is preferred by newer MLflow versions.
         mlflow.sklearn.log_model(
-            pipeline,
-            artifact_path="model",
+            sk_model=pipeline,
+            name="model",
+            input_example=X_train.head(3),
         )
 
         model_uri = f"runs:/{run.info.run_id}/model"
 
-        # Register the trained model.
+        # Register model.
         client = MlflowClient()
 
         try:
             client.create_registered_model(model_name)
+
             logger.info(
                 "Created registered model: %s",
                 model_name,
             )
+
         except mlflow.exceptions.MlflowException:
-            # The registered model may already exist.
             logger.info(
                 "Registered model already exists: %s",
                 model_name,
@@ -253,19 +335,22 @@ def main(args):
             run_id=run.info.run_id,
         )
 
-        # Wait for the model version to become ready when supported.
-        client.wait_until_ready(
-            name=model_name,
-            version=version.version,
-            timeout=300,
+        # Wait until the model version is ready.
+        wait_for_model_version(
+            client=client,
+            model_name=model_name,
+            version_number=version.version,
+            timeout_seconds=300,
+            poll_interval=2,
         )
 
+        # Update model version description.
         client.update_model_version(
             name=model_name,
             version=version.version,
             description=(
                 f"Algorithm: {algorithm}; "
-                f"target: {target}; "
+                f"Target: {target}; "
                 f"MAE: {mae:.2f}; "
                 f"RMSE: {rmse:.2f}; "
                 f"R2: {r2:.4f}"
@@ -273,14 +358,14 @@ def main(args):
         )
 
         # Retain the existing Staging workflow.
-        # Note: MLflow model stages are deprecated in newer versions.
+        # MLflow stages are deprecated in newer versions.
         client.transition_model_version_stage(
             name=model_name,
             version=version.version,
             stage="Staging",
         )
 
-        # Record reproducibility metadata.
+        # Reproducibility metadata.
         tags = {
             "algorithm": algorithm,
             "target_variable": target,
@@ -303,7 +388,7 @@ def main(args):
                 value=value,
             )
 
-        # Save the COMPLETE fitted pipeline, not only XGBoost.
+        # Save the complete fitted pipeline locally.
         save_path = os.path.join(
             trained_dir,
             f"{model_name}.pkl",
@@ -311,7 +396,7 @@ def main(args):
 
         joblib.dump(pipeline, save_path)
 
-        # Save training results for downstream Jenkins stages.
+        # Write metrics for downstream Jenkins stages.
         metrics = {
             "model": algorithm,
             "model_name": model_name,
@@ -326,14 +411,22 @@ def main(args):
             "mlflow_run_id": run.info.run_id,
         }
 
-        metrics_path = os.path.join(PROJECT_ROOT, "metrics.json")
+        metrics_path = os.path.join(
+            PROJECT_ROOT,
+            "metrics.json",
+        )
 
-        with open(metrics_path, "w", encoding="utf-8") as file:
+        with open(
+            metrics_path,
+            "w",
+            encoding="utf-8",
+        ) as file:
             json.dump(metrics, file, indent=2)
 
         logger.info("Model version: %s", version.version)
         logger.info("Model saved: %s", save_path)
         logger.info("Metrics saved: %s", metrics_path)
+
         logger.info(
             "Training completed successfully. "
             "MAE: %.2f | RMSE: %.2f | R2: %.4f",

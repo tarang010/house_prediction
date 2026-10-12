@@ -178,15 +178,21 @@ async def predict(request: HousePredictionRequest):
         else request.dict()
     )
 
-    predicted_price = float(result.predicted_price)
-
     prediction_id = store_prediction(
         request_data=request_data,
-        predicted_price=predicted_price,
-        model_version="1",
+        predicted_price=float(result.predicted_price),
+        model_version="1"
     )
 
-    return result
+    return {
+        **(
+            result.model_dump()
+            if hasattr(result, "model_dump")
+            else result.dict()
+        ),
+        "prediction_id": prediction_id
+    }
+
 
 @app.post("/batch-predict")
 async def batch_predict_endpoint(

@@ -1,7 +1,7 @@
 {
   "model": "XGBoost",
   "model_name": "house_price_prediction_v1",
-  "model_version": "14",
+  "model_version": "15",
   "mae": 210254.11041992187,
   "rmse": 544099.5621980381,
   "r2": 0.9947837560446772,
@@ -9,5 +9,5 @@
   "test_rows": 800,
   "dataset": "C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\HousePricePrediction\\data\\processed\\house_data_processed.csv",
   "model_path": "C:\\ProgramData\\Jenkins\\.jenkins\\workspace\\HousePricePrediction\\models\\trained\\house_price_prediction_v1.pkl",
-  "mlflow_run_id": "685e5e0b05a44d54b08726e2fb808d80"
+  "mlflow_run_id": "17e59e3d4f2d42318bc40d23055ea760"
 }
